@@ -30,6 +30,21 @@ struct Tempus {
     index: usize,
 }
 
+enum AggregateType {
+    Sum,
+    Average,
+    Min,
+    Max,
+    Count,
+    First,
+    Last,
+    /* Median,
+    Mode,
+    Percentile,
+    StdDev,
+    Variance, */
+}
+
 impl Tempus {
     fn new() -> Self {
         Self {
@@ -39,7 +54,7 @@ impl Tempus {
     }
 
     fn insert(&mut self, timestamp: u64, value: f64, tags: HashMap<String, String>) {
-        let data_point = DataPoint {
+        let data_point: DataPoint = DataPoint {
             timestamp,
             value,
             tags,
@@ -57,7 +72,7 @@ impl Tempus {
     }
 
     fn update(&mut self, timestamp: u64, value: f64, tags: HashMap<String, String>) {
-        let data_point: &mut DataPoint = self.data_series.iter_mut().find(|db| db.timestamp == timestamp).unwrap();
+        let data_point: &mut DataPoint = self.data_series.iter_mut().find(|dp: &&mut DataPoint| dp.timestamp == timestamp).unwrap();
         data_point.value = value;
         data_point.tags = tags;
     }
@@ -65,28 +80,22 @@ impl Tempus {
     fn get<'a>(&'a self, timestamp: u64) -> Option<f64> {
         self.data_series
             .iter()
-            .find(|db| db.timestamp == timestamp)
-            .map(|db| db.value)
+            .find(|dp: &&DataPoint| dp.timestamp == timestamp)
+            .map(|dp: &DataPoint| dp.value)
     }
 
     fn range_query(&self, start: u64, end: u64) -> Vec<DataPoint> {
         self.data_series
             .iter()
-            .filter(|db| db.timestamp >= start && db.timestamp <= end)
+            .filter(|dp: &&DataPoint| dp.timestamp >= start && dp.timestamp <= end)
             .cloned()
             .collect()
-    }
-
-    fn average(&self, start: u64, end: u64) -> f64 {
-        let data = self.range_query(start, end);
-        let sum = data.iter().map(|db| db.value).sum::<f64>();
-        sum / data.len() as f64
     }
 
     fn find_by_tag(&self, tag: &str) -> Vec<DataPoint> {
         self.data_series
             .iter()
-            .filter(|db| db.tags.contains_key(tag))
+            .filter(|dp: &&DataPoint| dp.tags.contains_key(tag))
             .cloned()
             .collect()
     }
@@ -94,25 +103,42 @@ impl Tempus {
     fn find_by_tag_value(&self, tag: &str, value: &str) -> Vec<DataPoint> {
         self.data_series
             .iter()
-            .filter(|db| db.tags.get(tag).unwrap() == value)
+            .filter(|dp: &&DataPoint| dp.tags.get(tag).unwrap() == value)
             .cloned()
             .collect()
     }
 
     fn delete(&mut self, timestamp: u64) {
-        self.data_series.retain(|db| db.timestamp != timestamp);
+        self.data_series.retain(|dp: &DataPoint| dp.timestamp != timestamp);
     }
 
     fn delete_by_tag(&mut self, tag: &str) {
-        self.data_series.retain(|db| !db.tags.contains_key(tag));
+        self.data_series.retain(|dp: &DataPoint| !dp.tags.contains_key(tag));
+    }
+
+    fn aggregate(&self, aggregate_type: AggregateType, start:u64, end:u64) -> f64 {
+        let data: Vec<DataPoint> = self.range_query(start, end);
+
+        match aggregate_type {
+            AggregateType::Sum => data.iter().map(|dp: &DataPoint| dp.value).sum::<f64>(),
+            AggregateType::Average => {
+                data.iter().map(|dp: &DataPoint| dp.value).sum::<f64>() / data.len() as f64
+            },
+            AggregateType::Count => data.len() as f64,
+            AggregateType::First => data.first().map(|dp: &DataPoint| dp.value).unwrap_or(0.0),
+            AggregateType::Last => data.last().map(|dp: &DataPoint| dp.value).unwrap_or(0.0),
+            AggregateType::Max => data.iter().map(|dp: &DataPoint| dp.value).max_by(|a, b| a.total_cmp(b)).unwrap_or(0.0),
+            AggregateType::Min => data.iter().map(|dp: &DataPoint| dp.value).min_by(|a, b| a.total_cmp(b)).unwrap_or(0.0)
+            
+        }
     }
 
 
 }
 
 fn main() {
-    let mut tempus = Tempus::new();
-    let mut scores = HashMap::new();
+    let mut tempus: Tempus = Tempus::new();
+    let mut scores: HashMap<String, String> = HashMap::new();
 
     scores.insert("Hello".to_string(), "1".to_string());
     scores.insert("World".to_string(), "2".to_string());
