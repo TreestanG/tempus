@@ -1,11 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// A time series data structure that stores timestamped values with associated tags
+pub struct Tempus {
+    data_series: Vec<DataPoint>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct DataPoint {
-    timestamp: u64,
-    value: f64,
-    tags: HashMap<String, String>,
+pub struct DataPoint {
+    pub timestamp: u64,
+    pub value: f64,
+    pub tags: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -24,13 +29,8 @@ enum Value {
     VecHashMap(Vec<HashMap<String, String>>),
 }
 
-#[derive(Serialize, Deserialize)]
-struct Tempus {
-    data_series: Vec<DataPoint>,
-    index: usize,
-}
-
-enum AggregateType {
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum AggregateType {
     Sum,
     Average,
     Min,
@@ -46,14 +46,22 @@ enum AggregateType {
 }
 
 impl Tempus {
-    fn new() -> Self {
+    /// Creates a new empty Tempus instance
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use tempus::Tempus;
+    /// 
+    /// let tempus = Tempus::new();
+    /// ```
+    pub fn new() -> Self {
         Self {
             data_series: Vec::new(),
-            index: 0,
         }
     }
 
-    fn insert(&mut self, timestamp: u64, value: f64, tags: HashMap<String, String>) {
+    pub fn insert(&mut self, timestamp: u64, value: f64, tags: HashMap<String, String>) {
         let data_point: DataPoint = DataPoint {
             timestamp,
             value,
@@ -62,7 +70,7 @@ impl Tempus {
         self.data_series.push(data_point);
     }
 
-    fn bulk_insert(&mut self, data: Vec<(u64, f64, HashMap<String, String>)>) {
+    pub fn bulk_insert(&mut self, data: Vec<(u64, f64, HashMap<String, String>)>) {
         let data_points = data.iter().map(|(timestamp, value, tags)| DataPoint {
             timestamp: *timestamp,
             value: *value,
@@ -71,20 +79,20 @@ impl Tempus {
         self.data_series.extend(data_points);
     }
 
-    fn update(&mut self, timestamp: u64, value: f64, tags: HashMap<String, String>) {
+    pub fn update(&mut self, timestamp: u64, value: f64, tags: HashMap<String, String>) {
         let data_point: &mut DataPoint = self.data_series.iter_mut().find(|dp: &&mut DataPoint| dp.timestamp == timestamp).unwrap();
         data_point.value = value;
         data_point.tags = tags;
     }
 
-    fn get<'a>(&'a self, timestamp: u64) -> Option<f64> {
+    pub fn get<'a>(&'a self, timestamp: u64) -> Option<f64> {
         self.data_series
             .iter()
             .find(|dp: &&DataPoint| dp.timestamp == timestamp)
             .map(|dp: &DataPoint| dp.value)
     }
 
-    fn range_query(&self, start: u64, end: u64) -> Vec<DataPoint> {
+    pub fn range_query(&self, start: u64, end: u64) -> Vec<DataPoint> {
         self.data_series
             .iter()
             .filter(|dp: &&DataPoint| dp.timestamp >= start && dp.timestamp <= end)
@@ -92,7 +100,7 @@ impl Tempus {
             .collect()
     }
 
-    fn find_by_tag(&self, tag: &str) -> Vec<DataPoint> {
+    pub fn find_by_tag(&self, tag: &str) -> Vec<DataPoint> {
         self.data_series
             .iter()
             .filter(|dp: &&DataPoint| dp.tags.contains_key(tag))
@@ -100,7 +108,7 @@ impl Tempus {
             .collect()
     }
 
-    fn find_by_tag_value(&self, tag: &str, value: &str) -> Vec<DataPoint> {
+    pub fn find_by_tag_value(&self, tag: &str, value: &str) -> Vec<DataPoint> {
         self.data_series
             .iter()
             .filter(|dp: &&DataPoint| dp.tags.get(tag).unwrap() == value)
@@ -108,15 +116,15 @@ impl Tempus {
             .collect()
     }
 
-    fn delete(&mut self, timestamp: u64) {
+    pub fn delete(&mut self, timestamp: u64) {
         self.data_series.retain(|dp: &DataPoint| dp.timestamp != timestamp);
     }
 
-    fn delete_by_tag(&mut self, tag: &str) {
+    pub fn delete_by_tag(&mut self, tag: &str) {
         self.data_series.retain(|dp: &DataPoint| !dp.tags.contains_key(tag));
     }
 
-    fn aggregate(&self, aggregate_type: AggregateType, start:u64, end:u64) -> f64 {
+    pub fn aggregate(&self, aggregate_type: AggregateType, start:u64, end:u64) -> f64 {
         let data: Vec<DataPoint> = self.range_query(start, end);
 
         match aggregate_type {
@@ -134,17 +142,4 @@ impl Tempus {
     }
 
 
-}
-
-fn main() {
-    let mut tempus: Tempus = Tempus::new();
-    let mut scores: HashMap<String, String> = HashMap::new();
-
-    scores.insert("Hello".to_string(), "1".to_string());
-    scores.insert("World".to_string(), "2".to_string());
-
-    tempus.bulk_insert(vec![(1, 1.0, scores), (2, 2.0, HashMap::new())]);
-    tempus.insert(3, 3.0, HashMap::new());
-
-    tempus.update(1, 1.0, HashMap::new());
 }

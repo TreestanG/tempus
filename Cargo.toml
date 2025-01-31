@@ -2,10 +2,16 @@
 name = "tempus"
 version = "0.1.0"
 edition = "2021"
+authors = ["Tristan <me@tristangee.com>"]
+description = "An ultra-efficient in-memory time series database"
+license = "MIT"
+repository = "https://github.com/treestang/tempus"
+readme = "README.md"
+keywords = ["timeseries", "data", "database", "time"]
+categories = ["data-structures", "database"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
 serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
-log = "0.4"
-env_logger = "0.9"
