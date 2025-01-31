@@ -66,9 +66,11 @@ impl Tempus {
             timestamp,
             value,
             tags,
+
         };
         self.data_series.push(data_point);
     }
+
 
     pub fn bulk_insert(&mut self, data: Vec<(u64, f64, HashMap<String, String>)>) {
         let data_points = data.iter().map(|(timestamp, value, tags)| DataPoint {
@@ -85,7 +87,7 @@ impl Tempus {
         data_point.tags = tags;
     }
 
-    pub fn get<'a>(&'a self, timestamp: u64) -> Option<f64> {
+    pub fn get(&self, timestamp: u64) -> Option<f64> {
         self.data_series
             .iter()
             .find(|dp: &&DataPoint| dp.timestamp == timestamp)
@@ -93,12 +95,15 @@ impl Tempus {
     }
 
     pub fn range_query(&self, start: u64, end: u64) -> Vec<DataPoint> {
-        self.data_series
+        let result = self.data_series
             .iter()
             .filter(|dp: &&DataPoint| dp.timestamp >= start && dp.timestamp <= end)
             .cloned()
-            .collect()
+            .collect();
+        result
+
     }
+
 
     pub fn find_by_tag(&self, tag: &str) -> Vec<DataPoint> {
         self.data_series
@@ -126,7 +131,6 @@ impl Tempus {
 
     pub fn aggregate(&self, aggregate_type: AggregateType, start:u64, end:u64) -> f64 {
         let data: Vec<DataPoint> = self.range_query(start, end);
-
         match aggregate_type {
             AggregateType::Sum => data.iter().map(|dp: &DataPoint| dp.value).sum::<f64>(),
             AggregateType::Average => {
@@ -140,6 +144,4 @@ impl Tempus {
             
         }
     }
-
-
 }
